@@ -61,6 +61,7 @@ MVP에서는 “프롬프트 실행/테스트”는 제공하지 않는다. 대�
 5. Prompt 상세 편집은 **저장 시 새 버전 생성**을 기본으로 한다(과거 덮어쓰기 금지).
 6. Library는 리스트(행) 형태로 빠르게 훑어볼 수 있어야 하며, 제목/버전수/목적/수정시각/스니펫을 표시해야 한다.
 7. Library 각 항목에는 대표 버전 본문을 클립보드에 복사하는 버튼이 있어야 한다.
+8. Prompt 조회 화면(Workspace/Public 상세)의 본문 표시에는 `[system]`, `[user]`, `[assistant]` 같은 role 접두를 노출하지 않고 content만 표시해야 한다.
 
 ### 4.2 Versioning/Diff/Rollback (MUST)
 1. PromptVersion은 변경 불가능(immutable)해야 한다.
@@ -120,6 +121,7 @@ MVP 린트 규칙(최소):
    - Admin은 listing 숨김/삭제/복구, 사용자 제재(최소)를 수행
 8. Explore에서 카드 클릭 시 해당 Listing의 버전 고정 본문을 상세 화면(또는 패널)에서 확인할 수 있어야 한다.
 9. Listing 상세에는 본문 복사 버튼이 있어야 하며, 사용자 레이블은 `복사`를 사용한다.
+10. Public 화면에서 사용자가 좋아요한 Listing 목록과 북마크한 Listing 목록을 각각 별도 리스트로 확인할 수 있어야 한다.
 
 ### 4.8 Export/Import + Local Backup (MUST)
 1. 사용자는 내 프롬프트 전체 또는 선택을 ZIP으로 export 가능.
@@ -345,6 +347,7 @@ MVP 린트 규칙(최소):
 - `DELETE /api/listings/:id` (unpublish or remove 요청; 실제는 status 변경)
 - `GET /api/listings/:slug`
 - `GET /api/listings/:id` (Explore 카드 클릭 시 상세 + 본문 조회)
+- `GET /api/listings/reactions` (현재 사용자의 liked/bookmarked listing 목록)
 - `POST /api/listings/:id/like` / `DELETE /api/listings/:id/like`
 - `POST /api/listings/:id/bookmark` / `DELETE /api/listings/:id/bookmark`
 - `POST /api/listings/:id/fork` (rights 체크 필수)
@@ -511,13 +514,13 @@ variables:
 
 ## 14) MVP 완료 체크리스트
 - [ ] 프롬프트 CRUD + 폴더/태그
-- [ ] Workspace 리스트 탐색 UI + 항목별 복사 버튼
+- [ ] Workspace 리스트 탐색 UI + 항목별 복사 버튼 + 조회 본문 role 접두 미표시
 - [ ] 버전 자동 생성 + diff + 롤백 + pin
 - [ ] 변수 스키마 + 렌더 + 경고
 - [ ] 린터 규칙 최소 세트
 - [ ] 키워드 + 시맨틱 검색(개인/공개 분리)
 - [ ] Optimizer 조건 선택 + 변형안 + 새 버전 저장
-- [ ] Publish/Public listing + 카드→상세 + 상세 복사 + Like/Bookmark + Fork(옵션 제한) + Report/Admin
+- [ ] Publish/Public listing + 카드→상세 + 상세 복사 + Like/Bookmark + 반응 목록 조회 + Fork(옵션 제한) + Report/Admin
 - [ ] Export/Import + 로컬 백업(암호화 옵션)
 - [ ] dev 재시작 간 로컬 상태 영속화(LocalStateStore)
 

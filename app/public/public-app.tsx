@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
+import { toDisplayPromptText } from '../../src/prompt-text';
 
 type ListingStats = {
   likeCount: number;
@@ -47,10 +48,15 @@ async function readJsonSafe<T>(response: Response): Promise<Partial<T>> {
 
 export function PublicApp() {
   const [listings, setListings] = useState<Listing[]>([]);
+  const [reactions, setReactions] = useState<{ liked: Listing[]; bookmarked: Listing[] }>({
+    liked: [],
+    bookmarked: [],
+  });
   const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ListingDetail | null>(null);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingReactions, setLoadingReactions] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [copying, setCopying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +64,7 @@ export function PublicApp() {
 
   useEffect(() => {
     void loadListings('');
+    void loadReactions();
   }, []);
 
   useEffect(() => {
@@ -131,6 +138,32 @@ export function PublicApp() {
     }
   }
 
+  async function loadReactions() {
+    setLoadingReactions(true);
+
+    try {
+      const response = await fetch('/api/listings/reactions', { cache: 'no-store' });
+      const json = (await readJsonSafe<{ liked?: Listing[]; bookmarked?: Listing[]; error?: string }>(response)) as {
+        liked?: Listing[];
+        bookmarked?: Listing[];
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(json.error ?? '내 반응 목록을 불러오지 못했습니다.');
+      }
+
+      setReactions({
+        liked: json.liked ?? [],
+        bookmarked: json.bookmarked ?? [],
+      });
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : '알 수 없는 오류가 발생했습니다.');
+    } finally {
+      setLoadingReactions(false);
+    }
+  }
+
   async function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await loadListings(query);
@@ -170,6 +203,8 @@ export function PublicApp() {
             }
           : prev,
       );
+
+      await loadReactions();
     } catch (reactError) {
       setError(reactError instanceof Error ? reactError.message : '알 수 없는 오류가 발생했습니다.');
     }
@@ -233,6 +268,52 @@ export function PublicApp() {
       <div className="status-stack" role="status" aria-live="polite">
         {error ? <p className="status status-error">{error}</p> : null}
         {notice ? <p className="status status-ok">{notice}</p> : null}
+      </div>
+
+      <div className="reaction-library" aria-busy={loadingReactions}>
+        <section className="panel reaction-panel">
+          <h2 className="section-title">내가 Like한 프롬프트</h2>
+          {loadingReactions ? <p className="empty">좋아요 목록을 불러오는 중...</p> : null}
+          {!loadingReactions && reactions.liked.length === 0 ? (
+            <p className="empty">좋아요한 프롬프트가 없습니다.</p>
+          ) : null}
+          {!loadingReactions && reactions.liked.length > 0 ? (
+            <ul className="reaction-list">
+              {reactions.liked.map((listing) => (
+                <li key={`liked-${listing.id}`}>
+                  <button type="button" className="reaction-item" onClick={() => setSelectedListingId(listing.id)}>
+                    <strong>{listing.title}</strong>
+                    <span className="muted">
+                      Like {listing.stats.likeCount} · Bookmark {listing.stats.bookmarkCount}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+
+        <section className="panel reaction-panel">
+          <h2 className="section-title">내가 Bookmark한 프롬프트</h2>
+          {loadingReactions ? <p className="empty">북마크 목록을 불러오는 중...</p> : null}
+          {!loadingReactions && reactions.bookmarked.length === 0 ? (
+            <p className="empty">북마크한 프롬프트가 없습니다.</p>
+          ) : null}
+          {!loadingReactions && reactions.bookmarked.length > 0 ? (
+            <ul className="reaction-list">
+              {reactions.bookmarked.map((listing) => (
+                <li key={`bookmarked-${listing.id}`}>
+                  <button type="button" className="reaction-item" onClick={() => setSelectedListingId(listing.id)}>
+                    <strong>{listing.title}</strong>
+                    <span className="muted">
+                      Like {listing.stats.likeCount} · Bookmark {listing.stats.bookmarkCount}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
       </div>
 
       {!loading && listings.length === 0 ? <p className="empty">표시할 공개 listing이 없습니다.</p> : null}
@@ -318,11 +399,7 @@ export function PublicApp() {
               </div>
 
               <div className="version-stack">
-                {detail.promptVersion.blocks.map((block, index) => (
-                  <pre key={`${detail.promptVersion.id}-${index}`} className="codeblock">
-                    [{block.role}] {block.content}
-                  </pre>
-                ))}
+                <pre className="codeblock">{toDisplayPromptText(detail.promptVersion.blocks)}</pre>
               </div>
             </>
           ) : null}

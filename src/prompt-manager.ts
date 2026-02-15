@@ -195,6 +195,11 @@ export interface ListingContentDetail extends ListingDetail {
   promptText: string;
 }
 
+export interface UserListingReactions {
+  liked: ListingDetail[];
+  bookmarked: ListingDetail[];
+}
+
 export interface PublicSearchResult {
   listing: Listing;
   score: number;
@@ -751,13 +756,24 @@ export class PromptManager {
     return ranked;
   }
 
+  listReactionsForUser(userId: string): UserListingReactions {
+    return {
+      liked: this.listReactionDetails(this.listingLikes, userId),
+      bookmarked: this.listReactionDetails(this.listingBookmarks, userId),
+    };
+  }
+
   likeListing(userId: string, listingId: string): ListingStats {
     const listing = this.mustGetListing(listingId);
     if (listing.status !== 'active') {
       throw new Error('Listing is not active.');
     }
     const likes = this.listingLikes.get(listingId) ?? new Set<string>();
-    likes.add(userId);
+    if (likes.has(userId)) {
+      likes.delete(userId);
+    } else {
+      likes.add(userId);
+    }
     this.listingLikes.set(listingId, likes);
     const stats = this.mustGetListingStats(listingId);
     stats.likeCount = likes.size;
@@ -770,7 +786,11 @@ export class PromptManager {
       throw new Error('Listing is not active.');
     }
     const bookmarks = this.listingBookmarks.get(listingId) ?? new Set<string>();
-    bookmarks.add(userId);
+    if (bookmarks.has(userId)) {
+      bookmarks.delete(userId);
+    } else {
+      bookmarks.add(userId);
+    }
     this.listingBookmarks.set(listingId, bookmarks);
     const stats = this.mustGetListingStats(listingId);
     stats.bookmarkCount = bookmarks.size;
@@ -1277,6 +1297,31 @@ export class PromptManager {
       throw new Error('Listing stats not found.');
     }
     return stats;
+  }
+
+  private listReactionDetails(source: Map<string, Set<string>>, userId: string): ListingDetail[] {
+    const details: ListingDetail[] = [];
+
+    for (const [listingId, users] of source.entries()) {
+      if (!users.has(userId)) {
+        continue;
+      }
+
+      const listing = this.listings.get(listingId);
+      if (!listing || listing.status !== 'active' || listing.visibility !== 'public') {
+        continue;
+      }
+
+      const stats = this.mustGetListingStats(listingId);
+      details.push({
+        listing: this.cloneListing(listing),
+        stats: { ...stats },
+      });
+    }
+
+    return details.sort(
+      (a, b) => new Date(b.listing.updatedAt).getTime() - new Date(a.listing.updatedAt).getTime(),
+    );
   }
 
   private mustGetPromptById(promptId: string): Prompt {

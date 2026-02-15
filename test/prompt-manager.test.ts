@@ -415,6 +415,90 @@ describe('PromptManager', () => {
     expect(report.status).toBe('open');
   });
 
+  it('shouldToggleLikeAndBookmarkWhenSameUserClicksAgain', () => {
+    const manager = new PromptManager();
+    const origin = manager.createPrompt({
+      userId: 'author',
+      title: 'Toggle target',
+      description: '',
+      purpose: 'writing',
+      outputFormat: 'markdown',
+      language: 'en',
+      tone: 'friendly',
+      sensitivity: 'normal',
+      notes: '',
+      blocks: [{ role: 'user', content: 'Write a short post.' }],
+    });
+
+    const listing = manager.publishListing('author', {
+      promptVersionId: origin.version.id,
+      title: 'Toggle listing',
+      summary: '',
+      category: 'marketing',
+      tags: [],
+      visibility: 'public',
+    });
+
+    manager.likeListing('reader', listing.id);
+    manager.bookmarkListing('reader', listing.id);
+
+    let detail = manager.getListing(listing.slug, { includeUnlisted: false });
+    expect(detail?.stats.likeCount).toBe(1);
+    expect(detail?.stats.bookmarkCount).toBe(1);
+
+    manager.likeListing('reader', listing.id);
+    manager.bookmarkListing('reader', listing.id);
+
+    detail = manager.getListing(listing.slug, { includeUnlisted: false });
+    expect(detail?.stats.likeCount).toBe(0);
+    expect(detail?.stats.bookmarkCount).toBe(0);
+  });
+
+  it('shouldListLikedAndBookmarkedListingsForUser', () => {
+    const manager = new PromptManager();
+    const origin = manager.createPrompt({
+      userId: 'author',
+      title: 'Reaction list target',
+      description: '',
+      purpose: 'writing',
+      outputFormat: 'markdown',
+      language: 'en',
+      tone: 'friendly',
+      sensitivity: 'normal',
+      notes: '',
+      blocks: [{ role: 'user', content: 'Write a short caption.' }],
+    });
+
+    const likedListing = manager.publishListing('author', {
+      promptVersionId: origin.version.id,
+      title: 'Liked listing',
+      summary: '',
+      category: 'marketing',
+      tags: [],
+      visibility: 'public',
+    });
+
+    const bookmarkedListing = manager.publishListing('author', {
+      promptVersionId: origin.version.id,
+      title: 'Bookmarked listing',
+      summary: '',
+      category: 'marketing',
+      tags: [],
+      visibility: 'public',
+    });
+
+    manager.likeListing('reader', likedListing.id);
+    manager.bookmarkListing('reader', bookmarkedListing.id);
+
+    const reactions = manager.listReactionsForUser('reader');
+    expect(reactions.liked.map((entry) => entry.listing.id)).toEqual([likedListing.id]);
+    expect(reactions.bookmarked.map((entry) => entry.listing.id)).toEqual([bookmarkedListing.id]);
+
+    manager.likeListing('reader', likedListing.id);
+    const afterToggle = manager.listReactionsForUser('reader');
+    expect(afterToggle.liked).toEqual([]);
+  });
+
   it('shouldExportZipBackupAndRestoreByImport', async () => {
     const manager = new PromptManager();
     manager.createPrompt({

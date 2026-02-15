@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { toDisplayPromptText } from '../../src/prompt-text';
 
 type PromptListItem = {
   id: string;
@@ -448,11 +449,7 @@ export function WorkspaceApp() {
                       </span>
                     </header>
                     {version.summary ? <p className="muted">{version.summary}</p> : null}
-                    {version.blocks.map((block, index) => (
-                      <pre key={`${version.id}-${index}`} className="codeblock">
-                        [{block.role}] {block.content}
-                      </pre>
-                    ))}
+                    <pre className="codeblock">{toDisplayPromptText(version.blocks)}</pre>
                   </article>
                 ))}
               </div>
